@@ -137,6 +137,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     countries,
   } = loaderData;
   const [latestCourse, ...moreCourses] = newestCourses;
+  const accountLinks = currentUser
+    ? [{ to: "/dashboard", label: "Dashboard", primary: true }]
+    : [
+        { to: "/login", label: "Log In", primary: false },
+        { to: "/signup", label: "Sign Up", primary: true },
+      ];
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -177,34 +183,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <Moon className="size-4" />
               )}
             </button>
-            {currentUser ? (
-              <Button asChild size="sm">
-                <Link to="/dashboard">Dashboard</Link>
-              </Button>
-            ) : (
-              <>
+            {accountLinks.map(({ to, label, primary }) =>
+              primary ? (
+                <Button key={to} asChild size="sm">
+                  <Link to={to}>{label}</Link>
+                </Button>
+              ) : (
                 <Link
-                  to="/login"
+                  key={to}
+                  to={to}
                   className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Log In
+                  {label}
                 </Link>
-                <Button asChild size="sm">
-                  <Link to="/signup">Sign Up</Link>
-                </Button>
-              </>
+              )
             )}
           </nav>
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-[3fr_2fr] lg:py-28">
+      <section
+        className={`mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:py-28 ${latestCourse ? "lg:grid-cols-[3fr_2fr]" : ""}`}
+      >
         <div>
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground">
-            <Sparkles className="size-4 text-primary" />
-            {countOf(publishedCourseCount, "course")} across{" "}
-            {countOf(categoryCount, "category", "categories")}
-          </p>
+          {latestCourse && (
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground">
+              <Sparkles className="size-4 text-primary" />
+              {countOf(publishedCourseCount, "course")} across{" "}
+              {countOf(categoryCount, "category", "categories")}
+            </p>
+          )}
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
             Learn to code,
             <br />
@@ -271,7 +279,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="mb-10 flex items-end justify-between">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">
-                Featured Courses
+                More new courses
               </h2>
               <p className="mt-2 text-muted-foreground">
                 The latest courses from our instructors
@@ -302,20 +310,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <Link to="/courses" className="hover:text-foreground">
               Courses
             </Link>
-            {currentUser ? (
-              <Link to="/dashboard" className="hover:text-foreground">
-                Dashboard
+            {accountLinks.map(({ to, label }) => (
+              <Link key={to} to={to} className="hover:text-foreground">
+                {label}
               </Link>
-            ) : (
-              <>
-                <Link to="/login" className="hover:text-foreground">
-                  Log In
-                </Link>
-                <Link to="/signup" className="hover:text-foreground">
-                  Sign Up
-                </Link>
-              </>
-            )}
+            ))}
           </nav>
         </div>
       </footer>
