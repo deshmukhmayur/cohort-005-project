@@ -62,7 +62,7 @@ function CourseCard({
         <CardHeader>
           {latest && (
             <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-              New course
+              Latest course
             </p>
           )}
           <Heading
