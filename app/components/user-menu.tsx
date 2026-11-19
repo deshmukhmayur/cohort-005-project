@@ -6,8 +6,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 
@@ -42,13 +40,6 @@ export function UserMenu({ user }: { user: SidebarUser }) {
         align="start"
         className="w-(--radix-dropdown-menu-trigger-width)"
       >
-        <DropdownMenuLabel className="break-words">
-          {user.name}
-          <div className="text-xs font-normal capitalize text-muted-foreground">
-            {user.role}
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link to="/settings">
             <Settings />
