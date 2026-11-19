@@ -25,6 +25,7 @@ import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
 import { eq } from "drizzle-orm";
 import { db } from "~/db";
 import { users } from "~/db/schema";
+import { countOf } from "~/lib/plural";
 import type { LandingPageCourse } from "~/modules/course-catalog/index.server";
 import { courseCatalog } from "~/modules/course-catalog/index.server";
 
@@ -82,7 +83,7 @@ function CourseCard({
           </span>
           <span className="flex items-center gap-1">
             <BookOpen className="size-3" />
-            {course.lessonCount} lessons
+            {countOf(course.lessonCount, "lesson")}
           </span>
         </CardFooter>
       </Card>
@@ -201,7 +202,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <div>
           <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground">
             <Sparkles className="size-4 text-primary" />
-            {publishedCourseCount} courses across {categoryCount} categories
+            {countOf(publishedCourseCount, "course")} across{" "}
+            {countOf(categoryCount, "category", "categories")}
           </p>
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
             Learn to code,
