@@ -25,6 +25,7 @@ import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
 import { eq } from "drizzle-orm";
 import { db } from "~/db";
 import { users } from "~/db/schema";
+import type { LandingPageCourse } from "~/modules/course-catalog/index.server";
 import { courseCatalog } from "~/modules/course-catalog/index.server";
 
 function getAllUsers() {
@@ -33,6 +34,60 @@ function getAllUsers() {
 
 function getUserById(id: number) {
   return db.select().from(users).where(eq(users.id, id)).get();
+}
+
+function CourseCard({
+  course,
+  latest = false,
+}: {
+  course: LandingPageCourse;
+  latest?: boolean;
+}) {
+  const Heading = latest ? "h2" : "h3";
+  return (
+    <Link to={`/courses/${course.slug}`} className="group block">
+      <Card
+        className={
+          latest
+            ? "overflow-hidden pt-0 shadow-lg transition-shadow group-hover:shadow-xl"
+            : "h-full overflow-hidden pt-0 transition-shadow group-hover:shadow-md"
+        }
+      >
+        <CourseImage
+          src={course.coverImageUrl}
+          alt={course.title}
+          className="aspect-video w-full object-cover"
+        />
+        <CardHeader>
+          {latest && (
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              New course
+            </p>
+          )}
+          <Heading
+            className={`font-semibold leading-snug group-hover:text-primary ${latest ? "text-xl" : ""}`}
+          >
+            {course.title}
+          </Heading>
+        </CardHeader>
+        <CardContent>
+          <p className="line-clamp-2 text-sm text-muted-foreground">
+            {course.description}
+          </p>
+        </CardContent>
+        <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <User className="size-3" />
+            {course.instructorName}
+          </span>
+          <span className="flex items-center gap-1">
+            <BookOpen className="size-3" />
+            {course.lessonCount} lessons
+          </span>
+        </CardFooter>
+      </Card>
+    </Link>
+  );
 }
 
 export function meta() {
@@ -174,40 +229,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
 
-        {latestCourse && (
-          <Link to={`/courses/${latestCourse.slug}`} className="group block">
-            <Card className="overflow-hidden pt-0 shadow-lg transition-shadow group-hover:shadow-xl">
-              <CourseImage
-                src={latestCourse.coverImageUrl}
-                alt={latestCourse.title}
-                className="aspect-video w-full object-cover"
-              />
-              <CardHeader>
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                  New course
-                </p>
-                <h2 className="text-xl font-semibold leading-snug group-hover:text-primary">
-                  {latestCourse.title}
-                </h2>
-              </CardHeader>
-              <CardContent>
-                <p className="line-clamp-2 text-sm text-muted-foreground">
-                  {latestCourse.description}
-                </p>
-              </CardContent>
-              <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <User className="size-3" />
-                  {latestCourse.instructorName ?? "Instructor"}
-                </span>
-                <span className="flex items-center gap-1">
-                  <BookOpen className="size-3" />
-                  {latestCourse.lessonCount} lessons
-                </span>
-              </CardFooter>
-            </Card>
-          </Link>
-        )}
+        {latestCourse && <CourseCard course={latestCourse} latest />}
       </section>
 
       <section className="border-y border-border bg-muted/50 py-12">
@@ -262,39 +284,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {moreCourses.map((course) => (
-              <Link
-                key={course.id}
-                to={`/courses/${course.slug}`}
-                className="group"
-              >
-                <Card className="h-full overflow-hidden pt-0 transition-shadow group-hover:shadow-md">
-                  <CourseImage
-                    src={course.coverImageUrl}
-                    alt={course.title}
-                    className="aspect-video w-full object-cover"
-                  />
-                  <CardHeader>
-                    <h3 className="font-semibold leading-snug group-hover:text-primary">
-                      {course.title}
-                    </h3>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      {course.description}
-                    </p>
-                  </CardContent>
-                  <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <User className="size-3" />
-                      {course.instructorName ?? "Instructor"}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="size-3" />
-                      {course.lessonCount} lessons
-                    </span>
-                  </CardFooter>
-                </Card>
-              </Link>
+              <CourseCard key={course.id} course={course} />
             ))}
           </div>
         </section>
