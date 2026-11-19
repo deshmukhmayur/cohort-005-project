@@ -2,7 +2,7 @@ import { NavLink } from "react-router";
 import { useState, useEffect } from "react";
 import { cn } from "~/lib/utils";
 import { UserRole } from "~/db/schema";
-import { UserMenu } from "~/components/user-menu";
+import { UserMenu, type SidebarUser } from "~/components/user-menu";
 import { NotificationBell } from "~/components/notification-feed";
 import {
   Bookmark,
@@ -20,13 +20,6 @@ import {
   Sun,
 } from "lucide-react";
 
-type CurrentUser = {
-  id: number;
-  name: string;
-  role: UserRole;
-  avatarUrl: string | null;
-};
-
 type RecentCourse = {
   courseId: number;
   title: string;
@@ -38,7 +31,7 @@ type RecentCourse = {
 };
 
 type SidebarProps = {
-  currentUser: CurrentUser | null;
+  currentUser: SidebarUser | null;
   recentCourses?: RecentCourse[];
   isTeamAdmin?: boolean;
 };

@@ -11,15 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 
-type UserMenuProps = {
-  user: {
-    name: string;
-    role: UserRole;
-    avatarUrl: string | null;
-  };
+export type SidebarUser = {
+  name: string;
+  role: UserRole;
+  avatarUrl: string | null;
 };
 
-export function UserMenu({ user }: UserMenuProps) {
+export function UserMenu({ user }: { user: SidebarUser }) {
   // A <Form> inside the menu unmounts as the menu closes on select, before
   // its submit can run, so sign-out submits programmatically instead.
   const submit = useSubmit();
