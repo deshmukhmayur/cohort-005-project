@@ -32,7 +32,7 @@ export function UserMenu({ user }: UserMenuProps) {
       >
         <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">{user.name}</div>
+          <div className="text-sm font-medium break-words">{user.name}</div>
           <div className="truncate text-xs capitalize text-sidebar-foreground/50">
             {user.role}
           </div>
