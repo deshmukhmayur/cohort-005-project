@@ -43,7 +43,9 @@ How to split:
   change together and share little with the rest of the file.
 - Route modules (app/routes/*): keep the loader, action, and page component in
   the route file. Move the business logic into a module in app/modules/ and
-  sub-components into their own files in app/components/.
+  sub-components into their own files in app/components/. A new module ships
+  with tests through its entry points, even for code moved unchanged:
+  \`npm run lint:module-tests\` and \`npm run test:mutation\` check this.
 - Logic that is already in a module (app/modules/<name>/): split it into more
   files under lib/. Keep the entry points (index.ts, index.server.ts) small. Do
   not add a barrel file. See app/modules/README.md.
@@ -53,6 +55,8 @@ How to split:
 - Scripts and seed data: move large data literals into their own files and
   import them.
 
-When you are done, run \`npm run check\` and commit again.`);
+Commit the split on its own, before the change you were making, so a
+reviewer can read the move apart from the change. When you are done, run
+\`npm run check\` and commit again.`);
   process.exit(1);
 }
