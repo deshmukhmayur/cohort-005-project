@@ -8,23 +8,26 @@ import {
   CardFooter,
   CardHeader,
 } from "~/components/ui/card";
-import { CourseStatus } from "~/db/schema";
 import {
   BookOpen,
   GraduationCap,
-  Users,
+  Clock,
   ArrowRight,
   User,
   Moon,
   Sun,
+  Sparkles,
 } from "lucide-react";
 import { CourseImage } from "~/components/course-image";
 import { DevUI } from "~/components/dev-ui";
 import { getCurrentUserId, getDevCountry } from "~/lib/session";
 import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
-import { eq, like, and, or, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "~/db";
-import { courses, categories, users, modules, lessons } from "~/db/schema";
+import { users } from "~/db/schema";
+import { countOf } from "~/lib/plural";
+import type { LandingPageCourse } from "~/modules/course-catalog/index.server";
+import { courseCatalog } from "~/modules/course-catalog/index.server";
 
 function getAllUsers() {
   return db.select().from(users).all();
@@ -34,87 +37,58 @@ function getUserById(id: number) {
   return db.select().from(users).where(eq(users.id, id)).get();
 }
 
-function getAllCategories() {
-  return db.select().from(categories).orderBy(categories.name).all();
-}
-
-function buildCourseQuery(
-  search: string | null,
-  category: string | null,
-  status: CourseStatus | null,
-  sortBy: string | null,
-  limit: number,
-  offset: number
-) {
-  const conditions = [];
-
-  if (status) {
-    conditions.push(eq(courses.status, status));
-  }
-
-  if (search) {
-    const term = `%${search}%`;
-    conditions.push(
-      or(like(courses.title, term), like(courses.description, term))
-    );
-  }
-
-  const query = db
-    .select({
-      id: courses.id,
-      title: courses.title,
-      slug: courses.slug,
-      description: courses.description,
-      salesCopy: courses.salesCopy,
-      instructorId: courses.instructorId,
-      categoryId: courses.categoryId,
-      status: courses.status,
-      coverImageUrl: courses.coverImageUrl,
-      price: courses.price,
-      pppEnabled: courses.pppEnabled,
-      createdAt: courses.createdAt,
-      updatedAt: courses.updatedAt,
-      instructorName: users.name,
-      instructorAvatarUrl: users.avatarUrl,
-      categoryName: categories.name,
-    })
-    .from(courses)
-    .innerJoin(users, eq(courses.instructorId, users.id))
-    .innerJoin(categories, eq(courses.categoryId, categories.id));
-
-  if (category) {
-    conditions.push(eq(categories.slug, category));
-  }
-
-  const filtered =
-    conditions.length > 0 ? query.where(and(...conditions)) : query;
-
-  const sorted =
-    sortBy === "title"
-      ? filtered.orderBy(courses.title)
-      : sortBy === "oldest"
-        ? filtered.orderBy(courses.createdAt)
-        : filtered.orderBy(sql`${courses.createdAt} DESC`);
-
-  return sorted.limit(limit).offset(offset).all();
-}
-
-function getLessonCountForCourse(courseId: number) {
-  const courseModules = db
-    .select({ id: modules.id })
-    .from(modules)
-    .where(eq(modules.courseId, courseId))
-    .all();
-
-  if (courseModules.length === 0) return 0;
-
-  const count = db
-    .select({ count: sql<number>`count(*)` })
-    .from(lessons)
-    .where(or(...courseModules.map((m) => eq(lessons.moduleId, m.id))))
-    .get();
-
-  return count?.count ?? 0;
+function CourseCard({
+  course,
+  latest = false,
+}: {
+  course: LandingPageCourse;
+  latest?: boolean;
+}) {
+  const Heading = latest ? "h2" : "h3";
+  return (
+    <Link to={`/courses/${course.slug}`} className="group block">
+      <Card
+        className={
+          latest
+            ? "overflow-hidden pt-0 shadow-lg transition-shadow group-hover:shadow-xl"
+            : "h-full overflow-hidden pt-0 transition-shadow group-hover:shadow-md"
+        }
+      >
+        <CourseImage
+          src={course.coverImageUrl}
+          alt={course.title}
+          className="aspect-video w-full object-cover"
+        />
+        <CardHeader>
+          {latest && (
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Latest course
+            </p>
+          )}
+          <Heading
+            className={`font-semibold leading-snug group-hover:text-primary ${latest ? "text-xl" : ""}`}
+          >
+            {course.title}
+          </Heading>
+        </CardHeader>
+        <CardContent>
+          <p className="line-clamp-2 text-sm text-muted-foreground">
+            {course.description}
+          </p>
+        </CardContent>
+        <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <User className="size-3" />
+            {course.instructorName}
+          </span>
+          <span className="flex items-center gap-1">
+            <BookOpen className="size-3" />
+            {countOf(course.lessonCount, "lesson")}
+          </span>
+        </CardFooter>
+      </Card>
+    </Link>
+  );
 }
 
 export function meta() {
@@ -129,19 +103,8 @@ export function meta() {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const courses = buildCourseQuery(
-    null,
-    null,
-    CourseStatus.Published,
-    "newest",
-    50,
-    0
-  );
-  const featured = courses.slice(0, 3).map((course) => ({
-    ...course,
-    lessonCount: getLessonCountForCourse(course.id),
-  }));
-  const categories = getAllCategories();
+  const { newestCourses, publishedCourseCount, categoryCount } =
+    courseCatalog.landingPage(4);
   const users = getAllUsers();
   const currentUserId = await getCurrentUserId(request);
   const currentUser = currentUserId ? getUserById(currentUserId) : null;
@@ -149,9 +112,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   const countryTierInfo = getCountryTierInfo(devCountry);
 
   return {
-    featuredCourses: featured,
-    totalCourses: courses.length,
-    totalCategories: categories.length,
+    newestCourses,
+    publishedCourseCount,
+    categoryCount,
     users: users.map((u) => ({ id: u.id, name: u.name, role: u.role })),
     currentUser: currentUser
       ? { id: currentUser.id, name: currentUser.name, role: currentUser.role }
@@ -164,15 +127,16 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const {
-    featuredCourses,
-    totalCourses,
-    totalCategories,
+    newestCourses,
+    publishedCourseCount,
+    categoryCount,
     users,
     currentUser,
     devCountry,
     countryTierInfo,
     countries,
   } = loaderData;
+  const [latestCourse, ...moreCourses] = newestCourses;
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -234,55 +198,75 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
-          Learn to code,
-          <br />
-          <span className="text-muted-foreground">at your own pace</span>
-        </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          Structured courses built by experienced instructors. Track your
-          progress, take quizzes, and build real-world skills.
-        </p>
-        <div className="mt-10 flex items-center justify-center gap-4">
-          <Button asChild size="lg">
-            <Link to="/courses">
-              Browse Courses
-              <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </Button>
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-[3fr_2fr] lg:py-28">
+        <div>
+          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground">
+            <Sparkles className="size-4 text-primary" />
+            {countOf(publishedCourseCount, "course")} across{" "}
+            {countOf(categoryCount, "category", "categories")}
+          </p>
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+            Learn to code,
+            <br />
+            <span className="text-muted-foreground">at your own pace</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+            Structured courses built by experienced instructors. Track your
+            progress, take quizzes, and build real-world skills.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <Button asChild size="lg">
+              <Link to="/courses">
+                Browse Courses
+                <ArrowRight className="ml-2 size-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              {currentUser ? (
+                <Link to="/dashboard">Go to your dashboard</Link>
+              ) : (
+                <Link to="/signup">Create a free account</Link>
+              )}
+            </Button>
+          </div>
         </div>
+
+        {latestCourse && <CourseCard course={latestCourse} latest />}
       </section>
 
-      <section className="border-y border-border bg-muted/50 py-16">
+      <section className="border-y border-border bg-muted/50 py-12">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-6 sm:grid-cols-3">
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-primary/10">
-              <BookOpen className="size-6 text-primary" />
+          {[
+            {
+              icon: BookOpen,
+              value: publishedCourseCount,
+              label: "Available courses",
+            },
+            {
+              icon: GraduationCap,
+              value: categoryCount,
+              label: "Categories",
+            },
+            {
+              icon: Clock,
+              value: "Self-paced",
+              label: "Learn on your schedule",
+            },
+          ].map(({ icon: Icon, value, label }) => (
+            <div key={label} className="flex items-center gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Icon className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{value}</p>
+                <p className="text-sm text-muted-foreground">{label}</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold">{totalCourses}</p>
-            <p className="text-sm text-muted-foreground">Available Courses</p>
-          </div>
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-primary/10">
-              <GraduationCap className="size-6 text-primary" />
-            </div>
-            <p className="text-2xl font-bold">{totalCategories}</p>
-            <p className="text-sm text-muted-foreground">Categories</p>
-          </div>
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-primary/10">
-              <Users className="size-6 text-primary" />
-            </div>
-            <p className="text-2xl font-bold">Self-paced</p>
-            <p className="text-sm text-muted-foreground">
-              Learn on your schedule
-            </p>
-          </div>
+          ))}
         </div>
       </section>
 
-      {featuredCourses.length > 0 && (
+      {moreCourses.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 py-20">
           <div className="mb-10 flex items-end justify-between">
             <div>
@@ -290,7 +274,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 Featured Courses
               </h2>
               <p className="mt-2 text-muted-foreground">
-                Start learning with our most popular courses
+                The latest courses from our instructors
               </p>
             </div>
             <Button asChild variant="outline">
@@ -301,48 +285,38 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredCourses.map((course) => (
-              <Link
-                key={course.id}
-                to={`/courses/${course.slug}`}
-                className="group"
-              >
-                <Card className="h-full overflow-hidden pt-0 transition-shadow group-hover:shadow-md">
-                  <CourseImage
-                    src={course.coverImageUrl}
-                    alt={course.title}
-                    className="aspect-video w-full object-cover"
-                  />
-                  <CardHeader>
-                    <h3 className="font-semibold leading-snug group-hover:text-primary">
-                      {course.title}
-                    </h3>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      {course.description}
-                    </p>
-                  </CardContent>
-                  <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <User className="size-3" />
-                      {course.instructorName ?? "Instructor"}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="size-3" />
-                      {course.lessonCount} lessons
-                    </span>
-                  </CardFooter>
-                </Card>
-              </Link>
+            {moreCourses.map((course) => (
+              <CourseCard key={course.id} course={course} />
             ))}
           </div>
         </section>
       )}
 
       <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-6xl px-6 text-center text-sm text-muted-foreground">
-          Cadence
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-foreground">Cadence</p>
+            <p>Learn to code, at your own pace.</p>
+          </div>
+          <nav className="flex gap-6">
+            <Link to="/courses" className="hover:text-foreground">
+              Courses
+            </Link>
+            {currentUser ? (
+              <Link to="/dashboard" className="hover:text-foreground">
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="hover:text-foreground">
+                  Log In
+                </Link>
+                <Link to="/signup" className="hover:text-foreground">
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </nav>
         </div>
       </footer>
 
