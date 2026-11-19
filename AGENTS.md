@@ -11,6 +11,8 @@ Or run the first three with `npm run check`.
 
 `npm run lint:oxlint` lints the whole repository with oxlint (`.oxlintrc.json`).
 
+The pre-commit hook rejects a commit that touches a file over 5000 tokens, and several routes already are. Expect a ticket in a large route to start with splitting it; the hook's message says how.
+
 Modules are deep modules: see [app/modules/README.md](./app/modules/README.md) before adding or importing one.
 
 ### About agent-browser

@@ -7,21 +7,33 @@ Review it with the code-review skill, .agents/skills/code-review/SKILL.md:
 - spec: /tmp/review-spec.md
 - standards: CODING_STANDARDS.md
 
-Leave the human reviewer as little as possible. Fix every finding you can on
-`{{BRANCH}}`, and commit each fix through the pre-commit hook. The workflow
-pushes your commits. Leave `.github/` untouched.
+You are the last automated gate before a human, and the human's time is the
+scarcest thing in this factory. Be relentless: fix every finding on
+`{{BRANCH}}`, not only the hard violations. That includes:
+
+- judgement calls and smells the review raises,
+- debt in any code this PR adds, changes or moves, even when it predates the
+  PR: code moved unchanged is in scope, because this PR is when it moves,
+- missing tests: every behaviour you or the PR touched has a test, and
+  `npm run test:mutation` exits 0.
+
+Leave a finding unfixed only when fixing it needs a decision a person must
+make: a product trade-off, a change to what the ticket asked for, or a rewrite
+of files this PR does not touch. Each fix is its own commit through the
+pre-commit hook. The workflow pushes your commits. Leave `.github/` untouched.
 
 Every finding you leave unfixed becomes an inline comment on its file and
-line. You will be asked for them as structured output.
+line. You will be asked for them as structured output. The inline comment is
+that finding's only home: say what decision it needs there.
 
 Write your verdict on the branch, after your fixes, to /tmp/review-verdict.md:
 
     ## Standards: PASS | CHANGES REQUESTED
-    One line of reasoning, then the findings, worst first: each one fixed
-    (its commit) or left (its file and line), citing the rule by heading.
-
     ## Spec: PASS | CHANGES REQUESTED
-    One line of reasoning, then the findings, fixed or left.
+    PASS when nothing is left for a person; any finding left makes that axis
+    CHANGES REQUESTED. Under each heading: one line of reasoning, then each
+    fix as one line, its commit and the rule it cites. End with the count of
+    findings left as inline comments, without repeating them.
 
     ## Rules this review wanted and could not find
     Anything you wanted to fail the change for that no standard covers.

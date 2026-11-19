@@ -23,7 +23,7 @@
  * result.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, statSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, statSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 /**
@@ -256,4 +256,47 @@ try {
 } catch (error) {
   const status = (error as { status?: number }).status;
   process.exit(typeof status === "number" ? status : 1);
+}
+
+/**
+ * Fail on any mutant the suite did not detect: `Survived` (a test ran the
+ * line and passed anyway) or `NoCoverage` (no test ran the line). Every file
+ * graded here sits below TESTED_ROOTS, where a test is expected to reach the
+ * code. Stryker itself exits 0 on both, and an agent once shipped a module
+ * whose every query went untested. With `coverageAnalysis: "off"`, untested
+ * code usually shows up as `Survived`, not `NoCoverage`, so check both.
+ */
+type Report = {
+  files: Record<
+    string,
+    {
+      mutants: {
+        status: string;
+        mutatorName: string;
+        location: { start: { line: number } };
+      }[];
+    }
+  >;
+};
+const UNDETECTED = new Set(["Survived", "NoCoverage"]);
+const reportPath = resolve(repoRoot, "reports/mutation/mutation.json");
+const report = JSON.parse(readFileSync(reportPath, "utf8")) as Report;
+const undetected = Object.entries(report.files).flatMap(([file, { mutants }]) =>
+  mutants
+    .filter(({ status }) => UNDETECTED.has(status))
+    .map(
+      ({ status, mutatorName, location }) =>
+        `  ${file}:${location.start.line} ${status} (${mutatorName})`
+    )
+);
+if (undetected.length > 0) {
+  console.error(
+    `\n${undetected.length} mutant(s) got past the tests:\n\n` +
+      undetected.join("\n") +
+      "\n\nWrite a test that fails on each mutant above, through the " +
+      "module's entry points, then run `npm run test:mutation` again. A " +
+      "mutant that changes nothing observable (an equivalent mutant) takes " +
+      "a `// Stryker disable next-line <mutator>: <reason>` comment instead.\n"
+  );
+  process.exit(1);
 }
