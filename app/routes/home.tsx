@@ -271,7 +271,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="mb-10 flex items-end justify-between">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">
-                Featured Courses
+                More new courses
               </h2>
               <p className="mt-2 text-muted-foreground">
                 The latest courses from our instructors
