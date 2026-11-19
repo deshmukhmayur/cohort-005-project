@@ -27,7 +27,10 @@ import { getCurrentUserId } from "~/lib/session";
 import { resolveCountry } from "~/lib/country.server";
 import { calculatePppPrice } from "~/lib/ppp";
 import { CourseCard } from "~/components/course-card";
-import { courseCatalog } from "~/modules/course-catalog/index.server";
+import {
+  courseCatalog,
+  type CourseAccess,
+} from "~/modules/course-catalog/index.server";
 
 function buildCourseQuery(
   search: string | null,
@@ -316,7 +319,7 @@ export async function loader({ request, url }: Route.LoaderArgs) {
 
   const courseAccess = currentUserId
     ? courseCatalog.courseAccess(currentUserId)
-    : new Map();
+    : new Map<number, CourseAccess>();
 
   const ratingSummaries = getCourseRatingSummaries(courses.map((c) => c.id));
 
