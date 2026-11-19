@@ -29,7 +29,8 @@ export const writeJson = (filename: string, value: unknown): void => {
 // use any tool. Claude Code also accepts `permissionMode: "auto"` here for
 // AI-mediated approvals instead (Claude only; other agents don't offer it).
 export const claudeAgent = () =>
-  sandcastle.claudeCode("claude-opus-5-5", {
+  sandcastle.claudeCode("claude-sonnet-5-5", {
+    effort: "medium",
     env: {
       CLAUDE_CODE_OAUTH_TOKEN: required("CLAUDE_CODE_OAUTH_TOKEN"),
     },
