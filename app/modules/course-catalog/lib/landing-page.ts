@@ -42,31 +42,30 @@ export function getLandingPage(database: Db, limit: number): LandingPage {
     .limit(limit)
     .all();
 
-  const totals = database
+  // An aggregate with no GROUP BY returns exactly one row, even over no rows.
+  const [{ publishedCourseCount, categoryCount }] = database
     .select({
       publishedCourseCount: count(),
       categoryCount: countDistinct(courses.categoryId),
     })
     .from(courses)
     .where(isPublished)
-    .get();
+    .all();
 
   const lessonCounts = new Map(
-    newest.length === 0
-      ? []
-      : database
-          .select({ courseId: modules.courseId, lessonCount: count() })
-          .from(lessons)
-          .innerJoin(modules, eq(lessons.moduleId, modules.id))
-          .where(
-            inArray(
-              modules.courseId,
-              newest.map((course) => course.id)
-            )
-          )
-          .groupBy(modules.courseId)
-          .all()
-          .map((row) => [row.courseId, row.lessonCount])
+    database
+      .select({ courseId: modules.courseId, lessonCount: count() })
+      .from(lessons)
+      .innerJoin(modules, eq(lessons.moduleId, modules.id))
+      .where(
+        inArray(
+          modules.courseId,
+          newest.map((course) => course.id)
+        )
+      )
+      .groupBy(modules.courseId)
+      .all()
+      .map((row) => [row.courseId, row.lessonCount])
   );
 
   return {
@@ -74,7 +73,7 @@ export function getLandingPage(database: Db, limit: number): LandingPage {
       ...course,
       lessonCount: lessonCounts.get(course.id) ?? 0,
     })),
-    publishedCourseCount: totals?.publishedCourseCount ?? 0,
-    categoryCount: totals?.categoryCount ?? 0,
+    publishedCourseCount,
+    categoryCount,
   };
 }
