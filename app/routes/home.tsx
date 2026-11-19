@@ -202,13 +202,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-[3fr_2fr] lg:py-28">
+      <section
+        className={`mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:py-28 ${latestCourse ? "lg:grid-cols-[3fr_2fr]" : ""}`}
+      >
         <div>
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground">
-            <Sparkles className="size-4 text-primary" />
-            {countOf(publishedCourseCount, "course")} across{" "}
-            {countOf(categoryCount, "category", "categories")}
-          </p>
+          {latestCourse && (
+            <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground">
+              <Sparkles className="size-4 text-primary" />
+              {countOf(publishedCourseCount, "course")} across{" "}
+              {countOf(categoryCount, "category", "categories")}
+            </p>
+          )}
           <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
             Learn to code,
             <br />
