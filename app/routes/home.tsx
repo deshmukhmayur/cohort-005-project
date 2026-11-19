@@ -12,11 +12,12 @@ import { CourseStatus } from "~/db/schema";
 import {
   BookOpen,
   GraduationCap,
-  Users,
+  Clock,
   ArrowRight,
   User,
   Moon,
   Sun,
+  Sparkles,
 } from "lucide-react";
 import { CourseImage } from "~/components/course-image";
 import { DevUI } from "~/components/dev-ui";
@@ -137,7 +138,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     50,
     0
   );
-  const featured = courses.slice(0, 3).map((course) => ({
+  const featured = courses.slice(0, 4).map((course) => ({
     ...course,
     lessonCount: getLessonCountForCourse(course.id),
   }));
@@ -173,6 +174,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     countryTierInfo,
     countries,
   } = loaderData;
+  const [spotlight, ...moreCourses] = featuredCourses;
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -234,55 +236,107 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
-          Learn to code,
-          <br />
-          <span className="text-muted-foreground">at your own pace</span>
-        </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          Structured courses built by experienced instructors. Track your
-          progress, take quizzes, and build real-world skills.
-        </p>
-        <div className="mt-10 flex items-center justify-center gap-4">
-          <Button asChild size="lg">
-            <Link to="/courses">
-              Browse Courses
-              <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </Button>
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-[3fr_2fr] lg:py-28">
+        <div>
+          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm font-medium text-muted-foreground">
+            <Sparkles className="size-4 text-primary" />
+            {totalCourses} courses across {totalCategories} categories
+          </p>
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl">
+            Learn to code,
+            <br />
+            <span className="text-muted-foreground">at your own pace</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+            Structured courses built by experienced instructors. Track your
+            progress, take quizzes, and build real-world skills.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <Button asChild size="lg">
+              <Link to="/courses">
+                Browse Courses
+                <ArrowRight className="ml-2 size-4" />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              {currentUser ? (
+                <Link to="/dashboard">Go to your dashboard</Link>
+              ) : (
+                <Link to="/signup">Create a free account</Link>
+              )}
+            </Button>
+          </div>
         </div>
+
+        {spotlight && (
+          <Link to={`/courses/${spotlight.slug}`} className="group block">
+            <Card className="overflow-hidden pt-0 shadow-lg transition-shadow group-hover:shadow-xl">
+              <CourseImage
+                src={spotlight.coverImageUrl}
+                alt={spotlight.title}
+                className="aspect-video w-full object-cover"
+              />
+              <CardHeader>
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  New course
+                </p>
+                <h2 className="text-xl font-semibold leading-snug group-hover:text-primary">
+                  {spotlight.title}
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <p className="line-clamp-2 text-sm text-muted-foreground">
+                  {spotlight.description}
+                </p>
+              </CardContent>
+              <CardFooter className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <User className="size-3" />
+                  {spotlight.instructorName ?? "Instructor"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <BookOpen className="size-3" />
+                  {spotlight.lessonCount} lessons
+                </span>
+              </CardFooter>
+            </Card>
+          </Link>
+        )}
       </section>
 
-      <section className="border-y border-border bg-muted/50 py-16">
+      <section className="border-y border-border bg-muted/50 py-12">
         <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-6 sm:grid-cols-3">
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-primary/10">
-              <BookOpen className="size-6 text-primary" />
+          {[
+            {
+              icon: BookOpen,
+              value: totalCourses,
+              label: "Available courses",
+            },
+            {
+              icon: GraduationCap,
+              value: totalCategories,
+              label: "Categories",
+            },
+            {
+              icon: Clock,
+              value: "Self-paced",
+              label: "Learn on your schedule",
+            },
+          ].map(({ icon: Icon, value, label }) => (
+            <div key={label} className="flex items-center gap-4">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Icon className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{value}</p>
+                <p className="text-sm text-muted-foreground">{label}</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold">{totalCourses}</p>
-            <p className="text-sm text-muted-foreground">Available Courses</p>
-          </div>
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-primary/10">
-              <GraduationCap className="size-6 text-primary" />
-            </div>
-            <p className="text-2xl font-bold">{totalCategories}</p>
-            <p className="text-sm text-muted-foreground">Categories</p>
-          </div>
-          <div className="text-center">
-            <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-lg bg-primary/10">
-              <Users className="size-6 text-primary" />
-            </div>
-            <p className="text-2xl font-bold">Self-paced</p>
-            <p className="text-sm text-muted-foreground">
-              Learn on your schedule
-            </p>
-          </div>
+          ))}
         </div>
       </section>
 
-      {featuredCourses.length > 0 && (
+      {moreCourses.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 py-20">
           <div className="mb-10 flex items-end justify-between">
             <div>
@@ -290,7 +344,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 Featured Courses
               </h2>
               <p className="mt-2 text-muted-foreground">
-                Start learning with our most popular courses
+                The latest courses from our instructors
               </p>
             </div>
             <Button asChild variant="outline">
@@ -301,7 +355,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredCourses.map((course) => (
+            {moreCourses.map((course) => (
               <Link
                 key={course.id}
                 to={`/courses/${course.slug}`}
@@ -341,8 +395,30 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       )}
 
       <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-6xl px-6 text-center text-sm text-muted-foreground">
-          Cadence
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-foreground">Cadence</p>
+            <p>Learn to code, at your own pace.</p>
+          </div>
+          <nav className="flex gap-6">
+            <Link to="/courses" className="hover:text-foreground">
+              Courses
+            </Link>
+            {currentUser ? (
+              <Link to="/dashboard" className="hover:text-foreground">
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="hover:text-foreground">
+                  Log In
+                </Link>
+                <Link to="/signup" className="hover:text-foreground">
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </nav>
         </div>
       </footer>
 
