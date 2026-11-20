@@ -1,4 +1,6 @@
-import { Link, redirect } from "react-router";
+import { useEffect } from "react";
+import { Link, redirect, useLocation, useNavigate } from "react-router";
+import { isCelebrating, withoutCelebration } from "~/modules/celebration";
 import type { Route } from "./+types/courses.$slug.welcome";
 import { db } from "~/db";
 import { courses, categories, users, modules, lessons } from "~/db/schema";
@@ -106,6 +108,24 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
 export default function Welcome({ loaderData }: Route.ComponentProps) {
   const { course, discordInviteUrl } = loaderData;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const celebrating = isCelebrating(
+    new URL(location.pathname + location.search, "http://localhost")
+  );
+
+  useEffect(() => {
+    if (!celebrating) return;
+    const url = new URL(
+      location.pathname + location.search,
+      "http://localhost"
+    );
+    navigate(withoutCelebration(url), { replace: true });
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    void import("canvas-confetti").then(({ default: confetti }) => {
+      confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+    });
+  }, [celebrating, location.pathname, location.search, navigate]);
 
   const firstLessonId =
     course.modules.length > 0 && course.modules[0].lessons.length > 0
