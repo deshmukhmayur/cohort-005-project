@@ -13,15 +13,21 @@ describe("celebration", () => {
   });
 
   it("detects the flag only when it is 1", () => {
-    expect(isCelebrating(new URL("http://x/w?celebrate=1"))).toBe(true);
-    expect(isCelebrating(new URL("http://x/w?celebrate=0"))).toBe(false);
-    expect(isCelebrating(new URL("http://x/w"))).toBe(false);
+    expect(isCelebrating({ search: "?celebrate=1" })).toBe(true);
+    expect(isCelebrating({ search: "?celebrate=0" })).toBe(false);
+    expect(isCelebrating({ search: "" })).toBe(false);
   });
 
   it("removes only the flag", () => {
-    expect(withoutCelebration(new URL("http://x/w?celebrate=1"))).toBe("/w");
-    expect(withoutCelebration(new URL("http://x/w?a=b&celebrate=1#h"))).toBe(
-      "/w?a=b#h"
-    );
+    expect(
+      withoutCelebration({ pathname: "/w", search: "?celebrate=1", hash: "" })
+    ).toBe("/w");
+    expect(
+      withoutCelebration({
+        pathname: "/w",
+        search: "?a=b&celebrate=1",
+        hash: "#h",
+      })
+    ).toBe("/w?a=b#h");
   });
 });

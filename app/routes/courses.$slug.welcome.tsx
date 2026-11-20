@@ -110,22 +110,16 @@ export default function Welcome({ loaderData }: Route.ComponentProps) {
   const { course, discordInviteUrl } = loaderData;
   const location = useLocation();
   const navigate = useNavigate();
-  const celebrating = isCelebrating(
-    new URL(location.pathname + location.search, "http://localhost")
-  );
+  const celebrating = isCelebrating(location);
 
   useEffect(() => {
     if (!celebrating) return;
-    const url = new URL(
-      location.pathname + location.search,
-      "http://localhost"
-    );
-    navigate(withoutCelebration(url), { replace: true });
+    navigate(withoutCelebration(location), { replace: true });
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     void import("canvas-confetti").then(({ default: confetti }) => {
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
     });
-  }, [celebrating, location.pathname, location.search, navigate]);
+  }, [celebrating, location, navigate]);
 
   const firstLessonId =
     course.modules.length > 0 && course.modules[0].lessons.length > 0
