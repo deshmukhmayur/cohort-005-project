@@ -147,6 +147,11 @@
     {
       "files": [
         "app/components/comment-thread.tsx",
+        "app/components/course-editor/header-editors.tsx",
+        "app/components/course-editor/module-editors.tsx",
+        "app/components/course-editor/sales-copy-tab.tsx",
+        "app/components/course-editor/settings-tab.tsx",
+        "app/components/course-editor/students-tab.tsx",
         "app/components/dev-ui.tsx",
         "app/components/lesson-viewer/curriculum-sidebar.tsx",
         "app/components/lesson-viewer/full-lesson.tsx",
