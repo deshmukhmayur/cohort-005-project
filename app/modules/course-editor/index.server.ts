@@ -5,9 +5,13 @@ import { loadCourseEditor } from "./lib/view";
 
 /**
  * The course editor bound to a database. The app uses `courseEditor`, which
- * reads the app database; tests build their own against a test database.
+ * reads the app database; tests build their own against a test database and
+ * a fixed clock.
  */
-export function createCourseEditor(database: Db) {
+export function createCourseEditor(
+  database: Db,
+  clock: () => Date = () => new Date()
+) {
   return {
     /**
      * Everything the editor page shows: the course with its modules and
@@ -26,7 +30,10 @@ export function createCourseEditor(database: Db) {
       course: { id: number; title: string; description: string },
       formData: FormData
     ) {
-      return performCourseEditorAction(database, course, formData);
+      return performCourseEditorAction(
+        { db: database, course, now: clock() },
+        formData
+      );
     },
   };
 }

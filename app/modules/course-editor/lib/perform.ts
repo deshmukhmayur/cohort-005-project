@@ -1,5 +1,6 @@
 import { data } from "react-router";
 import { parseFormData } from "~/lib/validation";
+import { markdown } from "~/lib/text";
 import * as q from "./queries";
 import { courseEditorActionSchema } from "./schema";
 import type { z } from "zod";
@@ -7,7 +8,8 @@ import type { z } from "zod";
 type Action = z.infer<typeof courseEditorActionSchema>;
 type Intent<T extends Action["intent"]> = Extract<Action, { intent: T }>;
 type Course = { id: number; title: string; description: string };
-type Context = { db: q.Db; course: Course };
+type CourseEditFields = Omit<Parameters<typeof q.updateCourse>[2], "updatedAt">;
+type Context = { db: q.Db; course: Course; now: Date };
 
 const ok = (field: string) => ({ success: true, field });
 const fail = (error: string, status: number) => data({ error }, { status });
@@ -30,7 +32,7 @@ function ownLesson(context: Context, lessonId: number) {
   return { lesson, error: null };
 }
 
-function updatePrice({ db, course }: Context, input: Intent<"update-price">) {
+function updatePrice(context: Context, input: Intent<"update-price">) {
   const dollars = parseFloat(input.price);
   if (isNaN(dollars) || dollars < 0) {
     return fail("Price must be a non-negative number.", 400);
@@ -38,7 +40,7 @@ function updatePrice({ db, course }: Context, input: Intent<"update-price">) {
   if (dollars > MAX_PRICE_DOLLARS) {
     return fail("Price cannot exceed $9,999.99.", 400);
   }
-  q.updateCoursePrice(db, course.id, Math.round(dollars * 100));
+  editCourse(context, { price: Math.round(dollars * 100) });
   return ok("price");
 }
 
@@ -76,8 +78,7 @@ function deleteLesson(context: Context, input: Intent<"delete-lesson">) {
 
 function reorderLessons(context: Context, input: Intent<"reorder-lessons">) {
   if (!ownModule(context, input.moduleId)) return fail(MODULE_MISSING, 404);
-  const lessonIds: number[] = JSON.parse(input.lessonIds);
-  q.reorderLessons(context.db, input.moduleId, lessonIds);
+  q.reorderLessons(context.db, input.moduleId, input.lessonIds);
   return ok("lesson-reorder");
 }
 
@@ -94,37 +95,42 @@ function moveLesson(context: Context, input: Intent<"move-lesson">) {
   return ok("lesson-move");
 }
 
-function dispatch(context: Context, input: Action) {
-  const { db, course } = context;
+function editCourse({ db, course, now }: Context, edit: CourseEditFields) {
+  q.updateCourse(db, course.id, { ...edit, updatedAt: now.toISOString() });
+}
+
+function updateCourseField(context: Context, input: Action) {
   switch (input.intent) {
     case "update-title":
-      q.updateCourse(db, course.id, {
-        title: input.title,
-        description: course.description,
-      });
+      editCourse(context, { title: input.title });
       return ok("title");
     case "update-description":
-      q.updateCourse(db, course.id, {
-        title: course.title,
-        description: input.description,
-      });
+      editCourse(context, { description: input.description });
       return ok("description");
     case "update-status":
-      q.updateCourseStatus(db, course.id, input.status);
+      editCourse(context, { status: input.status });
       return ok("status");
     case "update-price":
       return updatePrice(context, input);
     case "update-ppp-enabled":
-      q.updateCoursePppEnabled(db, course.id, input.pppEnabled === "true");
+      editCourse(context, { pppEnabled: input.pppEnabled === "true" });
       return ok("ppp-enabled");
     case "update-sales-copy":
-      q.updateCourseSalesCopy(db, course.id, input.salesCopy);
+      editCourse(context, { salesCopy: markdown(input.salesCopy) });
       return ok("sales-copy");
+  }
+}
+
+function dispatch(context: Context, input: Action) {
+  const { db, course } = context;
+  const fieldResult = updateCourseField(context, input);
+  if (fieldResult) return fieldResult;
+  switch (input.intent) {
     case "add-module":
       q.createModule(db, course.id, input.title);
       return ok("module");
     case "reorder-modules":
-      q.reorderModules(db, course.id, JSON.parse(input.moduleIds));
+      q.reorderModules(db, course.id, input.moduleIds);
       return ok("module-reorder");
     case "rename-module":
       return renameModule(context, input);
@@ -144,8 +150,7 @@ function dispatch(context: Context, input: Action) {
 }
 
 export function performCourseEditorAction(
-  db: q.Db,
-  course: Course,
+  context: Context,
   formData: FormData
 ) {
   const parsed = parseFormData(formData, courseEditorActionSchema);
@@ -153,5 +158,5 @@ export function performCourseEditorAction(
     // Stryker disable next-line StringLiteral: a failed parse always has at least one error; the fallback only satisfies the type.
     return fail(Object.values(parsed.errors)[0] ?? "Invalid input.", 400);
   }
-  return dispatch({ db, course }, parsed.data);
+  return dispatch(context, parsed.data);
 }

@@ -12,9 +12,7 @@ import {
   LessonProgressStatus,
   quizzes,
   quizAttempts,
-  type CourseStatus,
 } from "~/db/schema";
-import { markdown } from "~/lib/text";
 
 export type Db = BetterSQLite3Database<typeof schema>;
 
@@ -87,57 +85,17 @@ export function getLessonCountForCourse(db: Db, courseId: number) {
   return lessonIdsOfCourse(db, courseId).all().length;
 }
 
-export function updateCourse(
-  db: Db,
-  id: number,
-  fields: { title: string; description: string }
-) {
-  return db
-    .update(courses)
-    .set({ ...fields, updatedAt: new Date().toISOString() })
-    .where(eq(courses.id, id))
-    .returning()
-    .get();
-}
+type CourseEdit = Partial<
+  Pick<
+    typeof courses.$inferInsert,
+    "title" | "description" | "status" | "price" | "pppEnabled" | "salesCopy"
+  >
+> & { updatedAt: string };
 
-export function updateCourseStatus(db: Db, id: number, status: CourseStatus) {
+export function updateCourse(db: Db, id: number, edit: CourseEdit) {
   return db
     .update(courses)
-    .set({ status, updatedAt: new Date().toISOString() })
-    .where(eq(courses.id, id))
-    .returning()
-    .get();
-}
-
-export function updateCourseSalesCopy(db: Db, id: number, salesCopy: string) {
-  return db
-    .update(courses)
-    .set({
-      salesCopy: markdown(salesCopy),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(courses.id, id))
-    .returning()
-    .get();
-}
-
-export function updateCoursePrice(db: Db, id: number, price: number) {
-  return db
-    .update(courses)
-    .set({ price, updatedAt: new Date().toISOString() })
-    .where(eq(courses.id, id))
-    .returning()
-    .get();
-}
-
-export function updateCoursePppEnabled(
-  db: Db,
-  id: number,
-  pppEnabled: boolean
-) {
-  return db
-    .update(courses)
-    .set({ pppEnabled, updatedAt: new Date().toISOString() })
+    .set(edit)
     .where(eq(courses.id, id))
     .returning()
     .get();
@@ -171,17 +129,20 @@ export function updateModuleTitle(db: Db, id: number, title: string) {
 }
 
 export function deleteModule(db: Db, id: number) {
-  // Delete all lessons in this module first
-  db.delete(lessons).where(eq(lessons.moduleId, id)).run();
-  return db.delete(modules).where(eq(modules.id, id)).returning().get();
+  return db.transaction((tx) => {
+    tx.delete(lessons).where(eq(lessons.moduleId, id)).run();
+    return tx.delete(modules).where(eq(modules.id, id)).returning().get();
+  });
 }
 
 export function reorderModules(db: Db, courseId: number, moduleIds: number[]) {
-  moduleIds.forEach((moduleId, index) => {
-    db.update(modules)
-      .set({ position: index + 1 })
-      .where(and(eq(modules.id, moduleId), eq(modules.courseId, courseId)))
-      .run();
+  db.transaction((tx) => {
+    moduleIds.forEach((moduleId, index) => {
+      tx.update(modules)
+        .set({ position: index + 1 })
+        .where(and(eq(modules.id, moduleId), eq(modules.courseId, courseId)))
+        .run();
+    });
   });
 }
 
@@ -217,11 +178,13 @@ export function deleteLesson(db: Db, id: number) {
 }
 
 export function reorderLessons(db: Db, moduleId: number, lessonIds: number[]) {
-  lessonIds.forEach((lessonId, index) => {
-    db.update(lessons)
-      .set({ position: index + 1 })
-      .where(and(eq(lessons.id, lessonId), eq(lessons.moduleId, moduleId)))
-      .run();
+  db.transaction((tx) => {
+    lessonIds.forEach((lessonId, index) => {
+      tx.update(lessons)
+        .set({ position: index + 1 })
+        .where(and(eq(lessons.id, lessonId), eq(lessons.moduleId, moduleId)))
+        .run();
+    });
   });
 }
 
@@ -232,35 +195,32 @@ export function moveLessonToModule(
   lesson: LessonRow,
   target: { moduleId: number; position: number }
 ) {
-  // 1. Close the gap in the source module
-  db.update(lessons)
-    .set({ position: sql`${lessons.position} - 1` })
-    .where(
-      and(
-        eq(lessons.moduleId, lesson.moduleId),
-        gt(lessons.position, lesson.position)
+  return db.transaction((tx) => {
+    tx.update(lessons)
+      .set({ position: sql`${lessons.position} - 1` })
+      .where(
+        and(
+          eq(lessons.moduleId, lesson.moduleId),
+          gt(lessons.position, lesson.position)
+        )
       )
-    )
-    .run();
-
-  // 2. Open a gap in the destination module
-  db.update(lessons)
-    .set({ position: sql`${lessons.position} + 1` })
-    .where(
-      and(
-        eq(lessons.moduleId, target.moduleId),
-        gte(lessons.position, target.position)
+      .run();
+    tx.update(lessons)
+      .set({ position: sql`${lessons.position} + 1` })
+      .where(
+        and(
+          eq(lessons.moduleId, target.moduleId),
+          gte(lessons.position, target.position)
+        )
       )
-    )
-    .run();
-
-  // 3. Move the lesson to the target module at the target position
-  return db
-    .update(lessons)
-    .set({ moduleId: target.moduleId, position: target.position })
-    .where(eq(lessons.id, lesson.id))
-    .returning()
-    .get();
+      .run();
+    return tx
+      .update(lessons)
+      .set({ moduleId: target.moduleId, position: target.position })
+      .where(eq(lessons.id, lesson.id))
+      .returning()
+      .get();
+  });
 }
 
 export function getEnrollmentCountForCourse(db: Db, courseId: number) {
@@ -287,38 +247,40 @@ export function getCourseEnrolledStudents(db: Db, courseId: number) {
     .all();
 }
 
-/** Percentage of the course's lessons this student has completed. */
-export function calculateProgress(db: Db, userId: number, courseId: number) {
-  const lessonIds = lessonIdsOfCourse(db, courseId);
-  const total = getLessonCountForCourse(db, courseId);
-  if (total === 0) return 0;
-
-  const [row] = db
-    .select({ count: sql<number>`count(*)` })
+/** Lessons each student has completed in this course, in one query. */
+export function getCompletedLessonCounts(db: Db, courseId: number) {
+  const rows = db
+    .select({
+      userId: lessonProgress.userId,
+      count: sql<number>`count(*)`,
+    })
     .from(lessonProgress)
     .where(
       and(
-        eq(lessonProgress.userId, userId),
         eq(lessonProgress.status, LessonProgressStatus.Completed),
-        inArray(lessonProgress.lessonId, lessonIds)
+        inArray(lessonProgress.lessonId, lessonIdsOfCourse(db, courseId))
       )
     )
+    .groupBy(lessonProgress.userId)
     .all();
-  return Math.round((row.count / total) * 100);
+  return new Map(rows.map((row) => [row.userId, row.count]));
 }
 
-export function getQuizByLessonId(db: Db, lessonId: number) {
-  return db.select().from(quizzes).where(eq(quizzes.lessonId, lessonId)).get();
+/** The quiz attached to each of these lessons, in one query. */
+export function getQuizzesByLessonIds(db: Db, lessonIds: number[]) {
+  return db
+    .select()
+    .from(quizzes)
+    .where(inArray(quizzes.lessonId, lessonIds))
+    .all();
 }
 
-export function getBestAttempt(db: Db, userId: number, quizId: number) {
+/** Every attempt at these quizzes, highest score first. */
+export function getAttemptsBestFirst(db: Db, quizIds: number[]) {
   return db
     .select()
     .from(quizAttempts)
-    .where(
-      and(eq(quizAttempts.userId, userId), eq(quizAttempts.quizId, quizId))
-    )
+    .where(inArray(quizAttempts.quizId, quizIds))
     .orderBy(desc(quizAttempts.score))
-    .limit(1)
-    .get();
+    .all();
 }

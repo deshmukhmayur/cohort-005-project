@@ -1,6 +1,27 @@
 import { z } from "zod";
 import { CourseStatus } from "~/db/schema";
 
+function idList(missing: string) {
+  return z
+    .string()
+    .min(1, missing)
+    .transform((raw, refinement) => {
+      try {
+        return JSON.parse(raw) as unknown;
+      } catch {
+        refinement.addIssue({
+          // Stryker disable next-line StringLiteral: only `message` is read; zod accepts any code string here.
+          code: "custom",
+          message: "IDs must be valid JSON.",
+        });
+        return z.NEVER;
+      }
+    })
+    .pipe(
+      z.array(z.number().int(), { message: "IDs must be a list of numbers." })
+    );
+}
+
 export const courseEditorActionSchema = z.discriminatedUnion("intent", [
   z.object({
     intent: z.literal("update-title"),
@@ -15,7 +36,10 @@ export const courseEditorActionSchema = z.discriminatedUnion("intent", [
     status: z.nativeEnum(CourseStatus),
   }),
   z.object({ intent: z.literal("update-price"), price: z.string() }),
-  z.object({ intent: z.literal("update-ppp-enabled"), pppEnabled: z.string() }),
+  z.object({
+    intent: z.literal("update-ppp-enabled"),
+    pppEnabled: z.enum(["true", "false"]),
+  }),
   z.object({
     intent: z.literal("add-module"),
     title: z.string().trim().min(1, "Module title cannot be empty."),
@@ -41,12 +65,12 @@ export const courseEditorActionSchema = z.discriminatedUnion("intent", [
   }),
   z.object({
     intent: z.literal("reorder-modules"),
-    moduleIds: z.string().min(1, "Missing module IDs."),
+    moduleIds: idList("Missing module IDs."),
   }),
   z.object({
     intent: z.literal("reorder-lessons"),
     moduleId: z.coerce.number().int(),
-    lessonIds: z.string().min(1, "Missing lesson IDs."),
+    lessonIds: idList("Missing lesson IDs."),
   }),
   z.object({
     intent: z.literal("move-lesson"),
