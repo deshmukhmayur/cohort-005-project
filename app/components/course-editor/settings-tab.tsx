@@ -1,7 +1,5 @@
 import { CourseStatus } from "~/db/schema";
-import { useEffect } from "react";
 import { Link, useFetcher } from "react-router";
-import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -13,177 +11,154 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Eye, Globe } from "lucide-react";
+import { useFetcherToast } from "./use-fetcher-toast";
 
-export function SettingsTab({
-  course,
+type SettingsCourse = {
+  id: number;
+  slug: string;
+  status: string;
+  price: number;
+  pppEnabled: boolean;
+};
+
+export function SettingsTab({ course }: { course: SettingsCourse }) {
+  return (
+    <div className="space-y-6">
+      <SettingsCard title="Course Status">
+        <StatusField status={course.status} />
+      </SettingsCard>
+      <SettingsCard title="Pricing">
+        <div className="space-y-4">
+          <PriceField price={course.price} />
+          <PppField enabled={course.pppEnabled} />
+        </div>
+      </SettingsCard>
+      <SettingsCard title="Links">
+        <Link to={`/courses/${course.slug}`}>
+          <Button variant="outline" size="sm">
+            <Eye className="mr-1.5 size-4" />
+            View Public Page
+          </Button>
+        </Link>
+      </SettingsCard>
+    </div>
+  );
+}
+
+function SettingsCard({
+  title,
+  children,
 }: {
-  course: {
-    id: number;
-    slug: string;
-    status: string;
-    price: number;
-    pppEnabled: boolean;
-  };
+  title: string;
+  children: React.ReactNode;
 }) {
-  const statusFetcher = useFetcher();
-  const priceFetcher = useFetcher();
-  const pppFetcher = useFetcher();
+  return (
+    <Card>
+      <CardHeader>
+        <h2 className="text-lg font-semibold">{title}</h2>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
 
-  useEffect(() => {
-    if (statusFetcher.state === "idle" && statusFetcher.data?.success) {
-      toast.success("Course status updated.");
-    }
-    if (statusFetcher.state === "idle" && statusFetcher.data?.error) {
-      toast.error(statusFetcher.data.error);
-    }
-  }, [statusFetcher.state, statusFetcher.data]);
+function StatusField({ status }: { status: string }) {
+  const fetcher = useFetcher();
+  useFetcherToast(fetcher, "Course status updated.");
 
-  useEffect(() => {
-    if (priceFetcher.state === "idle" && priceFetcher.data?.success) {
-      toast.success("Price updated.");
-    }
-    if (priceFetcher.state === "idle" && priceFetcher.data?.error) {
-      toast.error(priceFetcher.data.error);
-    }
-  }, [priceFetcher.state, priceFetcher.data]);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium">Status:</span>
+      <Select
+        value={status}
+        onValueChange={(newStatus) =>
+          fetcher.submit(
+            { intent: "update-status", status: newStatus },
+            { method: "post" }
+          )
+        }
+      >
+        <SelectTrigger className="w-36">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={CourseStatus.Draft}>Draft</SelectItem>
+          <SelectItem value={CourseStatus.Published}>Published</SelectItem>
+          <SelectItem value={CourseStatus.Archived}>Archived</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    if (pppFetcher.state === "idle" && pppFetcher.data?.success) {
-      toast.success("PPP setting updated.");
-    }
-    if (pppFetcher.state === "idle" && pppFetcher.data?.error) {
-      toast.error(pppFetcher.data.error);
-    }
-  }, [pppFetcher.state, pppFetcher.data]);
+function PriceField({ price }: { price: number }) {
+  const fetcher = useFetcher();
+  useFetcherToast(fetcher, "Price updated.");
 
-  function handleStatusChange(newStatus: string) {
-    statusFetcher.submit(
-      { intent: "update-status", status: newStatus },
-      { method: "post" }
-    );
+  function handleBlur(event: React.FocusEvent<HTMLInputElement>) {
+    const value = parseFloat(event.target.value);
+    if (!isNaN(value) && value >= 0 && Math.round(value * 100) !== price) {
+      fetcher.submit(
+        { intent: "update-price", price: event.target.value },
+        { method: "post" }
+      );
+    }
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold">Course Status</h2>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Status:</span>
-              <Select value={course.status} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={CourseStatus.Draft}>Draft</SelectItem>
-                  <SelectItem value={CourseStatus.Published}>
-                    Published
-                  </SelectItem>
-                  <SelectItem value={CourseStatus.Archived}>
-                    Archived
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold">Pricing</h2>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Price:</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm text-muted-foreground">$</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="9999.99"
-                    step="0.01"
-                    defaultValue={(course.price / 100).toFixed(2)}
-                    className="w-28"
-                    onBlur={(event) => {
-                      const value = parseFloat(event.target.value);
-                      if (
-                        !isNaN(value) &&
-                        value >= 0 &&
-                        Math.round(value * 100) !== course.price
-                      ) {
-                        priceFetcher.submit(
-                          {
-                            intent: "update-price",
-                            price: event.target.value,
-                          },
-                          { method: "post" }
-                        );
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        (event.target as HTMLInputElement).blur();
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div
-                className="flex items-center gap-2"
-                title="Purchasing Power Parity: applies location-based discounts for students in lower-income countries"
-              >
-                <Globe className="size-4 text-muted-foreground" />
-                <span className="text-sm font-medium">PPP:</span>
-                <button
-                  type="button"
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    course.pppEnabled ? "bg-primary" : "bg-muted"
-                  }`}
-                  onClick={() => {
-                    pppFetcher.submit(
-                      {
-                        intent: "update-ppp-enabled",
-                        pppEnabled: String(!course.pppEnabled),
-                      },
-                      { method: "post" }
-                    );
-                  }}
-                >
-                  <span
-                    className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
-                      course.pppEnabled ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-                <span className="text-xs text-muted-foreground">
-                  {course.pppEnabled ? "On" : "Off"}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold">Links</h2>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Link to={`/courses/${course.slug}`}>
-                <Button variant="outline" size="sm">
-                  <Eye className="mr-1.5 size-4" />
-                  View Public Page
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium">Price:</span>
+      <div className="flex items-center gap-1">
+        <span className="text-sm text-muted-foreground">$</span>
+        <Input
+          type="number"
+          min="0"
+          max="9999.99"
+          step="0.01"
+          defaultValue={(price / 100).toFixed(2)}
+          className="w-28"
+          onBlur={handleBlur}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+        />
       </div>
-    </>
+    </div>
+  );
+}
+
+function PppField({ enabled }: { enabled: boolean }) {
+  const fetcher = useFetcher();
+  useFetcherToast(fetcher, "PPP setting updated.");
+
+  return (
+    <div
+      className="flex items-center gap-2"
+      title="Purchasing Power Parity: applies location-based discounts for students in lower-income countries"
+    >
+      <Globe className="size-4 text-muted-foreground" />
+      <span className="text-sm font-medium">PPP:</span>
+      <button
+        type="button"
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+          enabled ? "bg-primary" : "bg-muted"
+        }`}
+        onClick={() =>
+          fetcher.submit(
+            { intent: "update-ppp-enabled", pppEnabled: String(!enabled) },
+            { method: "post" }
+          )
+        }
+      >
+        <span
+          className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
+            enabled ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+      <span className="text-xs text-muted-foreground">
+        {enabled ? "On" : "Off"}
+      </span>
+    </div>
   );
 }

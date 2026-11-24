@@ -1,6 +1,4 @@
-import { useEffect } from "react";
-import { Link, useFetcher, type FetcherWithComponents } from "react-router";
-import { toast } from "sonner";
+import { Link, useFetcher } from "react-router";
 import {
   DragDropContext,
   Droppable,
@@ -22,6 +20,7 @@ import {
   InlineEditableLessonTitle,
   InlineEditableModuleTitle,
 } from "./module-editors";
+import { useFetcherToast } from "./use-fetcher-toast";
 
 type Lesson = {
   id: number;
@@ -36,22 +35,11 @@ type Course = { id: number; slug: string; modules: Module[] };
 const revealOnHover =
   "md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100";
 
-function useReorderToast(
-  fetcher: FetcherWithComponents<{ success?: boolean; error?: string }>,
-  successMessage: string
-) {
-  useEffect(() => {
-    if (fetcher.state !== "idle") return;
-    if (fetcher.data?.success) toast.success(successMessage);
-    if (fetcher.data?.error) toast.error(fetcher.data.error);
-  }, [fetcher.state, fetcher.data, successMessage]);
-}
-
 export function ContentTab({ course }: { course: Course }) {
   const reorderFetcher = useFetcher();
   const lessonReorderFetcher = useFetcher();
-  useReorderToast(reorderFetcher, "Modules reordered.");
-  useReorderToast(lessonReorderFetcher, "Lessons reordered.");
+  useFetcherToast(reorderFetcher, "Modules reordered.");
+  useFetcherToast(lessonReorderFetcher, "Lessons reordered.");
 
   function handleDragEnd(result: DropResult) {
     const submission = courseEditorDrag(result, course.modules);
@@ -260,7 +248,7 @@ function LessonRow({
         >
           <FileEdit className="size-3.5" />
         </LessonLink>
-        <DeleteLessonButton lessonId={lesson.id} lessonTitle={lesson.title} />
+        <DeleteLessonButton lessonId={lesson.id} />
       </div>
     </div>
   );

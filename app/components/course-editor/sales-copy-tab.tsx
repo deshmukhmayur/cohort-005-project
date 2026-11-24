@@ -1,77 +1,74 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useFetcher } from "react-router";
-import { toast } from "sonner";
 import { MonacoMarkdownEditor } from "~/components/monaco-markdown-editor";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Save } from "lucide-react";
+import { useFetcherToast } from "./use-fetcher-toast";
 
 export function SalesCopyTab({ course }: { course: { salesCopy: string } }) {
-  const salesCopyFetcher = useFetcher();
+  const fetcher = useFetcher();
   const [salesCopy, setSalesCopy] = useState<string>(course.salesCopy);
-  const salesCopyHasChanges = salesCopy !== course.salesCopy;
-  const salesCopyIsEmpty = salesCopy.trim().length === 0;
+  const hasChanges = salesCopy !== course.salesCopy;
+  const isEmpty = salesCopy.trim().length === 0;
+  const isSaving = fetcher.state !== "idle";
+  useFetcherToast(fetcher, "Sales copy saved.");
 
-  useEffect(() => {
-    if (salesCopyFetcher.state === "idle" && salesCopyFetcher.data?.success) {
-      toast.success("Sales copy saved.");
-    }
-    if (salesCopyFetcher.state === "idle" && salesCopyFetcher.data?.error) {
-      toast.error(salesCopyFetcher.data.error);
-    }
-  }, [salesCopyFetcher.state, salesCopyFetcher.data]);
-
-  function handleSalesCopySave() {
-    salesCopyFetcher.submit(
+  function handleSave() {
+    fetcher.submit(
       { intent: "update-sales-copy", salesCopy },
       { method: "post" }
     );
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold">Sales Copy</h2>
-          <p className="text-sm text-muted-foreground">
-            Write the course sales copy in Markdown. This is shown on the public
-            course page. Press Ctrl+S to format and save.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <MonacoMarkdownEditor
-            value={salesCopy}
-            onChange={setSalesCopy}
-            onSave={handleSalesCopySave}
-          />
-          <div className="mt-4 flex items-center gap-4">
-            <Button
-              onClick={handleSalesCopySave}
-              disabled={
-                !salesCopyHasChanges ||
-                salesCopyIsEmpty ||
-                salesCopyFetcher.state !== "idle"
-              }
-            >
-              <Save className="mr-1.5 size-4" />
-              {salesCopyFetcher.state !== "idle"
-                ? "Saving..."
-                : "Save Sales Copy"}
-            </Button>
-            {salesCopyIsEmpty ? (
-              <span className="text-sm text-destructive">
-                Sales copy cannot be empty.
-              </span>
-            ) : (
-              salesCopyHasChanges && (
-                <span className="text-sm text-muted-foreground">
-                  You have unsaved changes.
-                </span>
-              )
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </>
+    <Card>
+      <CardHeader>
+        <h2 className="text-lg font-semibold">Sales Copy</h2>
+        <p className="text-sm text-muted-foreground">
+          Write the course sales copy in Markdown. This is shown on the public
+          course page. Press Ctrl+S to format and save.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <MonacoMarkdownEditor
+          value={salesCopy}
+          onChange={setSalesCopy}
+          onSave={handleSave}
+        />
+        <div className="mt-4 flex items-center gap-4">
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || isEmpty || isSaving}
+          >
+            <Save className="mr-1.5 size-4" />
+            {isSaving ? "Saving..." : "Save Sales Copy"}
+          </Button>
+          <SalesCopyHint isEmpty={isEmpty} hasChanges={hasChanges} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SalesCopyHint({
+  isEmpty,
+  hasChanges,
+}: {
+  isEmpty: boolean;
+  hasChanges: boolean;
+}) {
+  if (isEmpty) {
+    return (
+      <span className="text-sm text-destructive">
+        Sales copy cannot be empty.
+      </span>
+    );
+  }
+  if (!hasChanges) return null;
+  return (
+    <span className="text-sm text-muted-foreground">
+      You have unsaved changes.
+    </span>
   );
 }

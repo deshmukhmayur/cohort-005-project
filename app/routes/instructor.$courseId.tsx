@@ -53,52 +53,15 @@ export async function action({ params, request }: Route.ActionArgs) {
 export default function InstructorCourseEditor({
   loaderData,
 }: Route.ComponentProps) {
-  const { course, lessonCount, enrollmentCount, students, quizCount } =
-    loaderData;
+  const { course, students, quizCount } = loaderData;
 
   return (
     <div className="mx-auto max-w-7xl p-6 lg:p-8">
-      {/* Breadcrumb */}
-      <nav className="mb-6 text-sm text-muted-foreground">
-        <Link to="/instructor" className="hover:text-foreground">
-          My Courses
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-foreground">{course.title}</span>
-      </nav>
-
-      <Link
-        to="/instructor"
-        className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="mr-1 size-4" />
-        Back to My Courses
-      </Link>
-
-      {/* Course Header with inline editing */}
-      <div className="mb-8">
-        <InlineEditableTitle value={course.title} />
-        <div className="mt-2">
-          <InlineEditableDescription value={course.description} />
-        </div>
-
-        {/* Stats row */}
-        <div className="mt-4 flex flex-wrap items-center gap-4 px-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <BookOpen className="size-4" />
-            {lessonCount} {lessonCount === 1 ? "lesson" : "lessons"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Users className="size-4" />
-            {enrollmentCount} {enrollmentCount === 1 ? "student" : "students"}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            Slug: /courses/{course.slug}
-          </span>
-        </div>
-      </div>
-
-      {/* Tabs */}
+      <EditorHeader
+        course={course}
+        lessonCount={loaderData.lessonCount}
+        enrollmentCount={loaderData.enrollmentCount}
+      />
       <Tabs defaultValue="content">
         <TabsList>
           <TabsTrigger value="content">
@@ -118,28 +81,70 @@ export default function InstructorCourseEditor({
             Students
           </TabsTrigger>
         </TabsList>
-
-        {/* Content Tab */}
         <TabsContent value="content" className="mt-6">
           <ContentTab course={course} />
         </TabsContent>
-
-        {/* Settings Tab */}
         <TabsContent value="settings" className="mt-6">
           <SettingsTab course={course} />
         </TabsContent>
-
-        {/* Sales Copy Tab */}
         <TabsContent value="sales-copy" className="mt-6">
           <SalesCopyTab course={course} />
         </TabsContent>
-
-        {/* Students Tab */}
         <TabsContent value="students" className="mt-6">
           <StudentsTab students={students} quizCount={quizCount} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function EditorHeader({
+  course,
+  lessonCount,
+  enrollmentCount,
+}: {
+  course: { title: string; description: string; slug: string };
+  lessonCount: number;
+  enrollmentCount: number;
+}) {
+  return (
+    <>
+      <nav className="mb-6 text-sm text-muted-foreground">
+        <Link to="/instructor" className="hover:text-foreground">
+          My Courses
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-foreground">{course.title}</span>
+      </nav>
+
+      <Link
+        to="/instructor"
+        className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="mr-1 size-4" />
+        Back to My Courses
+      </Link>
+
+      <div className="mb-8">
+        <InlineEditableTitle value={course.title} />
+        <div className="mt-2">
+          <InlineEditableDescription value={course.description} />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-4 px-3 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <BookOpen className="size-4" />
+            {lessonCount} {lessonCount === 1 ? "lesson" : "lessons"}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Users className="size-4" />
+            {enrollmentCount} {enrollmentCount === 1 ? "student" : "students"}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Slug: /courses/{course.slug}
+          </span>
+        </div>
+      </div>
+    </>
   );
 }
 
